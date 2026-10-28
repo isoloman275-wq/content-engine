@@ -37,7 +37,7 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
 
-def fetch(url: str) -> tuple[bytes, str]:
+def http_get(url: str) -> tuple[bytes, str]:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         return resp.read(), resp.headers.get("Content-Type", "")
@@ -142,7 +142,7 @@ def parse_feed(data: bytes, content_type: str = "") -> dict:
 def discover(page_url: str, page_html: bytes | None = None) -> list[str]:
     """Return candidate feed URLs for a page: <link rel=alternate> first, then well-known paths."""
     if page_html is None:
-        page_html, _ = fetch(page_url)
+        page_html, _ = http_get(page_url)
     text = page_html.decode("utf-8", "replace")
     found: list[str] = []
     for m in re.finditer(r"<link\b[^>]*>", text, re.I):
@@ -170,7 +170,7 @@ def looks_like_feed(data: bytes, content_type: str) -> bool:
 
 
 def read(url: str) -> dict:
-    data, ctype = fetch(url)
+    data, ctype = http_get(url)
     if looks_like_feed(data, ctype):
         feed = parse_feed(data, ctype)
         feed["url"] = url
@@ -179,7 +179,7 @@ def read(url: str) -> dict:
     errors = []
     for cand in candidates:
         try:
-            cdata, cctype = fetch(cand)
+            cdata, cctype = http_get(cand)
         except (urllib.error.URLError, OSError) as exc:
             errors.append(f"{cand}: {exc}")
             continue

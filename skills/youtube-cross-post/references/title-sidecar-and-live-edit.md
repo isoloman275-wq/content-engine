@@ -9,7 +9,7 @@ So `20260715_195953_evening_ch1.mp4` became the live title **"20260715 195953 Ev
 The pipeline DOES generate a real topic (e.g. "Why AI PCs are finally worth buying to stop runaway token bills with Bonsai 27B") but it was only written to `content_history.json` (which goes stale) and never carried to the video.
 
 ## The Fix — sidecar metadata next to each final video (VERIFIED)
-1. In `orchestrator.py`, after `assemble_video`, write `{job_id}.meta.json` next to the final `.mp4` on M2 (`Z:\final\`):
+1. In `orchestrator.py`, after `assemble_video`, write `{job_id}.meta.json` next to the final `.mp4` on GPU-NODE (`Z:\final\`):
    ```python
    meta_path = os.path.splitext(final_path)[0] + ".meta.json"
    meta = {
@@ -40,7 +40,7 @@ The pipeline DOES generate a real topic (e.g. "Why AI PCs are finally worth buyi
    The `description` and `tags` should also come from the sidecar (`caption`, `hashtags`), falling back to defaults.
 
 ## Back-filling past videos (no sidecar existed)
-The real topics for already-rendered videos live in **`/path/to/pipeline\logs\pipeline.log`** on the Windows side (NOT M2). Parse it statefully:
+The real topics for already-rendered videos live in **`/path/to/pipeline\logs\pipeline.log`** on the Windows side (NOT GPU-NODE). Parse it statefully:
 ```python
 job_re = re.compile(r'Pipeline starting - job:\s*(\S+?)\s*\|\s*channel')
 topic_re = re.compile(r'Topic:\s*(.+)')
@@ -53,7 +53,7 @@ for line in log.splitlines():
     if mt and job_for_topic:
         mapping[job_for_topic] = mt.group(1).strip(); job_for_topic = None
 ```
-Then `scp` a `{job_id}.meta.json` for every `.mp4` in `/pipeline/final/` to M2.
+Then `scp` a `{job_id}.meta.json` for every `.mp4` in `/pipeline/final/` to GPU-NODE.
 Two videos may be unrecoverable (topic not in log or history) — those keep the fallback filename title; flag them for manual edit or leave as-is.
 NOTE: `content_history.json` (`/path/to/pipeline\data\channel-1\`) is **stale** (stops ~2026-07-14) — do NOT trust it as the topic source for recent videos; the pipeline.log is authoritative.
 

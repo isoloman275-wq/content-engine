@@ -1,9 +1,9 @@
-# Dual-GPU Wan 2.2 / Flux optimization (M2 = dual-3060)
+# Dual-GPU Wan 2.2 / Flux optimization (GPU-NODE = dual-3060)
 
 ## Context
-M2 (gpu-node-2) is the ComfyUI host. It has TWO GPUs; Wan currently uses only
+GPU-NODE (gpu-node) is the ComfyUI host. It has TWO GPUs; Wan currently uses only
 GPU0 (12 GB) and treats GPU1 as "decorative" (WanVideoWrapper rejects it). The
-"dual 3060 12 GB" rig Fable analyzed IS this M2 box. The goal: stop wasting GPU1
+"dual 3060 12 GB" rig Fable analyzed IS this GPU-NODE box. The goal: stop wasting GPU1
 and raise output quality + speed for the TikTok + Etsy POD pipelines.
 
 Source: Fable (claude-fable-5) advice, verified against the live Wan 2.2 T2V graph
@@ -62,7 +62,7 @@ per card) for parallel batch throughput (good for TikTok bulk gen).
 3. Apply LightX2V Lightning LoRA (high + low variants) to both models.
 4. Settings: 4 steps (2+2), cfg 1.0, shift 5.0, euler/simple; vertical res.
 5. OOM fallback: Q4_K_S → then reduce frames BEFORE resolution.
-- BUILD THE GRAPH FROM COMFYUI'S BUILT-IN "Wan 2.2 T2V" TEMPLATE ON M2 (steps
+- BUILD THE GRAPH FROM COMFYUI'S BUILT-IN "Wan 2.2 T2V" TEMPLATE ON GPU-NODE (steps
   above). Do NOT ship a hand-written JSON — the template guarantees a correct
   graph for your installed ComfyUI version. Just swap the 3 loader nodes for the
   MultiGPU versions per step 2.
@@ -75,24 +75,24 @@ do WITHOUT restructuring:
 - Add Lightning LoRA via `WanVideoLoraSelectMulti` (node 60): set `lora_0` to the
   LightX2V Wan2.2-Lightning (high-noise) file, strength 1; steps 6→4, cfg 1.0,
   shift 5.0. → deployed as `wan22_t2v_lightning.json`.
-- Bump Q6_K → Q8_K IF the Q8 GGUF is downloaded to M2 (better quality).
+- Bump Q6_K → Q8_K IF the Q8 GGUF is downloaded to GPU-NODE (better quality).
 - Change default resolution to TikTok vertical (see manifest entry).
 - The full GPU1 encoder/VAE split requires WanVideoWrapper to support per-node
   device pinning. ATTEMPT: set `load_device` to `cuda:1` on node 11 (T5) and node 38
   (VAE). If WanVideoWrapper rejects it, use Path A.
 
-## Deploy + verify (WSL CANNOT reach M2 — run from Windows host)
-1. On M2 (or via Windows: `cmd.exe /c "ssh llm-user@gpu-node-2 ..."`):
+## Deploy + verify (WSL CANNOT reach GPU-NODE — run from Windows host)
+1. On GPU-NODE (or via Windows: `cmd.exe /c "ssh llm-user@gpu-node ..."`):
    - Install node packs via ComfyUI Manager (or git clone into `custom_nodes`).
    - Download models: Wan2.2-T2V-A14B-HighNoise/LowNoise Q8_K (or Q6_K),
      `umt5_xxl_fp8`, `wan_2.1_vae`, LightX2V Lightning LoRAs → ComfyUI models dir.
 2. Drop the workflow JSON into `comfy_workflows/` and add a manifest entry.
-3. Free M2 VRAM (unload Ollama brains) — MC "Free M2 VRAM" button or Ollama
+3. Free GPU-NODE VRAM (unload Ollama brains) — MC "Free GPU-NODE VRAM" button or Ollama
    `keep_alive:0`. NEVER auto-trigger.
-4. Start ComfyUI on M2: `sudo systemctl start comfyui` (or
+4. Start ComfyUI on GPU-NODE: `systemctl start comfyui` (or
    `/home/llm-user/start_comfyui.sh` with `--disable-smart-memory`).
 5. Verify the dual-GPU split ACTUALLY happened:
-   - `nvidia-smi` on M2 → both GPUs show memory used (GPU1 = encoder/VAE,
+   - `nvidia-smi` on GPU-NODE → both GPUs show memory used (GPU1 = encoder/VAE,
      GPU0 = model). If GPU1 stays at 0, the split didn't take — fall back to Path B
      or fix device strings.
    - MC GEN panel → reload page → pick the new workflow → generate a test clip →
@@ -110,7 +110,12 @@ prompt. Keep negatives technical-only.
 ## Files
 - Proven graph: `/path/to/pipeline\wan_api.json` → MC: `comfy_workflows/wan22_t2v.json`
 - Lightning variant: `comfy_workflows/wan22_t2v_lightning.json` (deployable now)
-- Path A graph: built from ComfyUI's built-in Wan 2.2 T2V template on M2 (no
+- Path A graph: built from ComfyUI's built-in Wan 2.2 T2V template on GPU-NODE (no
   hand-written JSON shipped — too version-fragile to verify from WSL)
 - Registry: `comfy_workflows/manifest.json`
 - MC server: `/path/to/projects` (`comfy_wrapper.py`)
+
+
+## Privileges and elevation
+
+Some system commands (service management, package installs, writes to system-owned paths) may need elevated rights. Run them as the user that owns the service, or apply your environment's elevation mechanism where required.

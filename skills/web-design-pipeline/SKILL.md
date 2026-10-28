@@ -47,7 +47,7 @@ cat /path/to/projects
 
 # Delegate to Ornith via curl to localhost:11434
 curl -s http://localhost:11434/api/generate \
-  -d '{"model":"ornith:9b","prompt":"Build a complete responsive landing page for: [brief]. Output complete HTML, CSS, and JS as separate files. Save to [output_dir]. Include: semantic HTML5, mobile-first CSS, smooth scroll, contact form (static). No frameworks.","stream":false,"think":false,"options":{"num_predict":4096}}'
+  -d '{"model":"<mid-local-model>","prompt":"Build a complete responsive landing page for: [brief]. Output complete HTML, CSS, and JS as separate files. Save to [output_dir]. Include: semantic HTML5, mobile-first CSS, smooth scroll, contact form (static). No frameworks.","stream":false,"think":false,"options":{"num_predict":4096}}'
 ```
 
 Or use `delegate_task` with tool access:
@@ -83,10 +83,10 @@ git init
 git checkout -b main
 git add .
 git commit -m 'Initial build'
-git remote add origin git@github.com:Hux275/[slug].git
+git remote add origin git@github.com:<github-user>/[slug].git
 git push -u origin main
 # Then enable GitHub Pages in repo settings -> source: main branch / root
-# Live URL: https://hux275.github.io/[slug]
+# Live URL: https://<github-user>.github.io/[slug]
 ```
 
 ## Gumroad Template Automation
@@ -112,12 +112,12 @@ For template products (no client), Ornith picks a niche based on trend data:
 | 5-page + contact | $200-280 | 5 days |
 | Gumroad template | $15-29 | digital |
 
-The `curl http://localhost:11434/api/generate -d '{"model":"ornith:9b"...}'` recipe above
-ASSUMES an Ollama serving `ornith:9b` on the local host. As of this session that is NOT true:
-- M1 (WSL/Windows) has **no `ollama` binary and no Ollama service** — `localhost:11434` is dead.
-- M2 (gpu-node-2:11434) IS up but its model list is `gpt-oss:20b, glm-4.7-flash,
-  qwen3-coder:30b, qwen3.8:27b-132k` — **no `ornith:9b`**.
-- M3 (aux-node:11434) has only `qwen3.5:0.8b, qwen3.5:2b-q4_K_M`.
+The `curl http://localhost:11434/api/generate -d '{"model":"<mid-local-model>"...}'` recipe above
+ASSUMES an Ollama serving `<mid-local-model>` on the local host. As of this session that is NOT true:
+- MAIN-NODE (WSL/Windows) has **no `ollama` binary and no Ollama service** — `localhost:11434` is dead.
+- GPU-NODE (gpu-node:11434) IS up but its model list is `gpt-oss:20b, <cloud-model>,
+  qwen3-coder:30b, <thinking-model>` — **no `<mid-local-model>`**.
+- AUX-NODE (aux-node:11434) has only `qwen3.5:0.8b, qwen3.5:2b-q4_K_M`.
 
 So the curl-to-ornith build will fail with a connection error. WORKING FALLBACK (used to
 build the first Gumroad template): delegate the build to a Hermes subagent that has
@@ -136,8 +136,8 @@ delegate_task(
 )
 ```
 
-If you specifically want Ornith, you must FIRST stand it up (install Ollama on M1 and pull
-`ornith:9b`, or add it to M2's Ollama) — that is a setup task, not a build task. Until then,
+If you specifically want Ornith, you must FIRST stand it up (install Ollama on MAIN-NODE and pull
+`<mid-local-model>`, or add it to GPU-NODE's Ollama) — that is a setup task, not a build task. Until then,
 use the subagent path; it produces the same HTML/CSS/JS deliverables.
 
 Existing reference builds already in `completed/` (design_001/002/003) confirm the output

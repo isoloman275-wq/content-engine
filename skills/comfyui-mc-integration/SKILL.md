@@ -1,13 +1,13 @@
 ---
 name: comfyui-mc-integration
-description: Integrate a remote ComfyUI instance (optionally on a VRAM-sharing GPU host) into the Mission Control dashboard — config-driven workflow registry, preview/gallery, and M2 VRAM coordination. Use when adding image/video generation (SD, Wan T2V/i2v, etc.) to MC or wiring any external ComfyUI service behind the dashboard. Companion to the `comfyui` skill.
+description: Integrate a remote ComfyUI instance (optionally on a VRAM-sharing GPU host) into the Mission Control dashboard — config-driven workflow registry, preview/gallery, and GPU-NODE VRAM coordination. Use when adding image/video generation (SD, Wan T2V/i2v, etc.) to MC or wiring any external ComfyUI service behind the dashboard. Companion to the `comfyui` skill.
 ---
 
 # ComfyUI → Mission Control Integration
 
 ## When to use
 - Adding image/video generation to the MC dashboard (GEN panel dropdown + PREVIEW gallery).
-- Pointing the wrapper at a remote ComfyUI (here M2 = gpu-node-2:8188) that shares VRAM with agent brains.
+- Pointing the wrapper at a remote ComfyUI (here GPU-NODE = gpu-node:8188) that shares VRAM with agent brains.
 - Adding a new workflow (e.g. Wan T2V/i2v) without restarting MC.
 
 ## Architecture
@@ -22,8 +22,8 @@ MC server.py (localhost:8777)
   │     comfy_output_bytes (PUBLIC attr) -> output file bytes
   │     gallery()         -> scan output dir (images + videos)
   ├─ /api/comfy/workflows | /status | /submit | /output | /gallery
-  ├─ /api/comfy/m2_vram   (read-only: probe M2 Ollama /api/ps)
-  └─ /api/comfy/free_m2   (unload M2 models via Ollama keep_alive:0)
+  ├─ /api/comfy/m2_vram   (read-only: probe GPU-NODE Ollama /api/ps)
+  └─ /api/comfy/free_m2   (unload GPU-NODE models via Ollama keep_alive:0)
        win_proxy_post()   -> POST to firewalled LAN host via cmd.exe /c curl (JSON in C:\tmp)
 Frontend: index.html (#gen-panel,#preview-panel,#m2-vram,#free-m2) + css + app.js
   initGen() populates dropdown from /api/comfy/workflows (runs ONCE on load)
@@ -71,36 +71,36 @@ Frontend: index.html (#gen-panel,#preview-panel,#m2-vram,#free-m2) + css + app.j
 ## Pitfalls (hit these before)
 1. **`comfy_wrapper.py` must expose PUBLIC function/attribute names** for everything the routes call (`comfy_status`, `comfy_workflows`, `comfy_generate`, `comfy_output_bytes`, `gallery`, …). A route calling a `_private` name raises `AttributeError` **before** the response is sent → the client gets **HTTP 000 / empty response, NOT a 404** (the handler crashes during dispatch, so nothing is returned). This bit us with `_comfy_output_bytes`.
 2. **Cache-bust on UI edits**: editing index.html / style.css / app.js requires a `?v=` bump in the HTML links. Server-read assets (manifest, workflow JSON) do NOT need a bump.
-3. **M2 VRAM sharing**: ComfyUI cannot run while `qwen3.8:27b-132k` + `ornith:35b` are loaded on M2. Free them first (`/api/comfy/free_m2` → Ollama keep_alive:0). NEVER auto-trigger free_m2 — user confirms.
-4. **WSL ↔ LAN**: WSL cannot reach 192.168.1.x and SSH is firewalled. Reach M2 Ollama via `cmd.exe /c curl` with JSON body written to `C:\tmp` temp files (the `win_proxy_post` helper). No remote-exec possible.
+3. **GPU-NODE VRAM sharing**: ComfyUI cannot run while `<thinking-model>` + `<large-local-model>` are loaded on GPU-NODE. Free them first (`/api/comfy/free_m2` → Ollama keep_alive:0). NEVER auto-trigger free_m2 — user confirms.
+4. **WSL ↔ LAN**: WSL cannot reach <lan-subnet> and SSH is firewalled. Reach the LAN inference node via `cmd.exe /c curl` with JSON body written to `C:\tmp` temp files (the `win_proxy_post` helper). No remote-exec possible.
 5. **Orphan nodes** in a workflow JSON are tolerated (ComfyUI warns, still runs). MUTED_NODES absent in the proven Wan file = clean.
 6. **i2v not built** — needs an i2v workflow JSON + an `input_image` manifest param feeding a `LoadImage` → WanVideo image-encode → sampler `image_embeds`.
 
 ## To test end-to-end
-1. Click "Free M2 VRAM" in GEN panel.
-2. Start ComfyUI on M2 (port 8188).
+1. Click "Free GPU-NODE VRAM" in GEN panel.
+2. Start ComfyUI on GPU-NODE (port 8188).
 3. Refresh MC page, pick "Wan 2.2 · Text to Video", enter prompt, Generate.
 4. MP4 appears in PREVIEW gallery.
 
-## Starting / Restarting ComfyUI on M2
+## Starting / Restarting ComfyUI on GPU-NODE
 
-M2 = gpu-node-2, port 8188 (GPU0) + 8189 (GPU1, decorative — Wan rejects it with empty status:error). SSH user is **llm-user** (NOT agent-user). There is a systemd service `comfyui` AND a launcher script `/home/llm-user/start_comfyui.sh`.
+GPU-NODE = gpu-node, port 8188 (GPU0) + 8189 (GPU1, decorative — Wan rejects it with empty status:error). SSH user is **llm-user** (NOT agent-user). There is a systemd service `comfyui` AND a launcher script `/home/llm-user/start_comfyui.sh`.
 
-**VRAM FIRST:** ComfyUI shares M2's GPU with the Ollama brains (qwen3.8:27b-132k + ornith:35b). Free them first or ComfyUI OOM-kills mid-render:
-  - MC GEN panel → "Free M2 VRAM" button, OR
-  - POST `{"keep_alive":0}` to M2 Ollama `/api/generate` per loaded model.
+**VRAM FIRST:** ComfyUI shares GPU-NODE's GPU with the Ollama brains (<thinking-model> + <large-local-model>). Free them first or ComfyUI OOM-kills mid-render:
+  - MC GEN panel → "Free GPU-NODE VRAM" button, OR
+  - POST `{"keep_alive":0}` to GPU-NODE Ollama `/api/generate` per loaded model.
   (Do NOT auto-trigger free_m2 — user must confirm.)
 
-**Get shell on M2:** `ssh llm-user@gpu-node-2` (or `ssh m2` if ~/.ssh/config alias set). CRITICAL: from WSL you CANNOT SSH to M2 (firewalled / LAN-unreachable from WSL side) — run the start from the Windows host (`cmd.exe /c "ssh llm-user@gpu-node-2 \"sudo systemctl start comfyui\""`) or directly on M2.
+**Get shell on GPU-NODE:** `ssh llm-user@gpu-node` (or `ssh m2` if ~/.ssh/config alias set). CRITICAL: from WSL you CANNOT SSH to GPU-NODE (firewalled / LAN-unreachable from WSL side) — run the start from the Windows host (`cmd.exe /c "ssh llm-user@gpu-node \"systemctl start comfyui\""`) or directly on GPU-NODE.
 
 **Start:**
-  - Option A (service): `sudo systemctl start comfyui`  (launches both 8188+8189); use `restart` after a crash.
+  - Option A (service): `systemctl start comfyui`  (launches both 8188+8189); use `restart` after a crash.
   - Option B (script): `bash /home/llm-user/start_comfyui.sh` — launches both instances with `--disable-smart-memory` (load-bearing; without it Wan OOM-kills on 12GB; do NOT use `--gpu-only`).
 
 **Verify (first-run model load ~45s):**
-  - On M2: `curl -s 127.0.0.1:8188/system_stats` → JSON
-  - Ports: `for p in 8188 8189; do timeout 4 bash -c "echo > /dev/tcp/gpu-node-2/$p" 2>/dev/null && echo "$p OPEN" || echo "$p CLOSED"; done`
-  - From Windows (pipeline side): `cmd.exe /c "curl -s -o nul -w %{http_code} --max-time 8 http://gpu-node-2:8188/"` → 200
+  - On GPU-NODE: `curl -s 127.0.0.1:8188/system_stats` → JSON
+  - Ports: `for p in 8188 8189; do timeout 4 bash -c "echo > /dev/tcp/gpu-node/$p" 2>/dev/null && echo "$p OPEN" || echo "$p CLOSED"; done`
+  - From Windows (pipeline side): `cmd.exe /c "curl -s -o nul -w %{http_code} --max-time 8 http://gpu-node:8188/"` → 200
 
 ## Pre-filling GEN panel defaults (e.g. a default Negative)
 
@@ -121,3 +121,8 @@ Add it as `"default":"..."` on each `negative_prompt` param object.
 - **Model-specific:** SD1.5 / SDXL → negative very effective, always use one. **Flux Dev largely IGNORES the negative prompt** — don't rely on it there. Wan T2V → negative applies, cleans warped frames.
 - So: always pre-fill a default negative for SD/Wan workflows; for Flux, leave it empty (or it's simply inert).
 - IP RULE: keep positives to YOUR Indigenous-led Aotearoa motifs; never name a real artist as a "style" reference or put copyrighted characters/logos in either prompt.
+
+
+## Privileges and elevation
+
+Some system commands (service management, package paths owned by root) may need elevated rights. Run them as the user that owns the service, or with your environment's elevation mechanism if required.

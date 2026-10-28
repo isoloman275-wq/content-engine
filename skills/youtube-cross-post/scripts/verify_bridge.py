@@ -48,20 +48,20 @@ if sys.platform == "win32":
 else:
     r = subprocess.run(["powershell.exe", "-Command", f"ssh -o ConnectTimeout=5 {host} hostname"], capture_output=True, text=True)
 if r.returncode == 0:
-    ok(f"SSH to M2 ({r.stdout.strip()})")
+    ok(f"SSH to GPU-NODE ({r.stdout.strip()})")
     passes += 1
 else:
-    fail(f"SSH to M2 failed — check C:\\Users\\Admin\\.ssh\\config has correct IP (gpu-node-2) and IdentityFile")
+    fail(f"SSH to GPU-NODE failed — check <windows-home>\\.ssh\\config has the correct host entry and IdentityFile")
 
-# 5. Videos on M2
+# 5. Videos on GPU-NODE
 checks += 1
 r = subprocess.run(["ssh", "-o", "ConnectTimeout=5", "m2", "find", "/pipeline/final/", "-name", "*.mp4", "-type", "f", "|", "wc", "-l"], capture_output=True, text=True, timeout=10)
 if r.returncode == 0:
     count = r.stdout.strip()
-    ok(f"{count} videos available on M2 at /pipeline/final/")
+    ok(f"{count} videos available on GPU-NODE at /pipeline/final/")
     passes += 1
 else:
-    fail("No videos on M2 — check Samba mount or pipeline output")
+    fail("No videos on GPU-NODE — check Samba mount or pipeline output")
 
 # 6. Python packages for API uploader
 checks += 1

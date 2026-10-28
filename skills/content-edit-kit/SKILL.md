@@ -12,14 +12,14 @@ handle cuts, captions, b-roll, export.**
 ## What's installed (verified)
 - **OBS Studio** — `C:\Program Files\obs-studio\bin\64bit\obs64.exe`. Has a
   dedicated **"Screen Rec"** scene (Display Capture + Desktop Audio + Mic/Aux)
-  added to `C:\Users\Admin\AppData\Roaming\obs-studio\basic\scenes\Untitled.json`
+  added to `C:\Users\<you>\AppData\Roaming\obs-studio\basic\scenes\Untitled.json`
   (backup at `.bak`). Original scene ("Scene") had VSeeFace Game Capture — don't
   break it.
-- **Shotcut 26.8.1** — `C:\Users\Admin\AppData\Local\Programs\Shotcut\shotcut.exe`
+- **Shotcut 26.8.1** — `C:\Users\<you>\AppData\Local\Programs\Shotcut\shotcut.exe`
   (installed per-user, NOT Program Files). Free professional NLE.
-- **ffmpeg v8** on Linux + Windows (WinGet at `C:\Users\Admin\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe`).
+- **ffmpeg v8** on Linux + Windows (WinGet at `C:\Users\<you>\AppData\Local\Microsoft\WinGet\Links\ffmpeg.exe`).
 - **faster-whisper** venv at `/path/to/projects` for word-level captioning.
-- **ComfyUI + Wan 2.2** on M2 `gpu-node-2:8188` (live) for AI b-roll.
+- **ComfyUI + Wan 2.2** on GPU-NODE `gpu-node:8188` (live) for AI b-roll.
 
 ## Key files
 - `/path/to/projects` — auto-caption tool

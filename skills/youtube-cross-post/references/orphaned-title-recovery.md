@@ -2,11 +2,11 @@
 
 When `python youtube_api_uploader.py --update-titles` logs
 `no sidecar topic (keeping current title)` for a video, the FIXER is working
-correctly — it just has no real topic to apply. Root cause: the M2 sidecar
+correctly — it just has no real topic to apply. Root cause: the GPU-NODE sidecar
 `/pipeline/final/<base>.meta.json` does not exist for that upload (predates the
 sidecar feature, or orchestrator never wrote one).
 
-## Step 1 — confirm the sidecar is missing on M2
+## Step 1 — confirm the sidecar is missing on GPU-NODE
 ```
 ssh llm-user@m2 "for b in 20260710_183020_morn 20260710_190000_even 20260711_123000_midd 20260711_190000_even 20260713_083343_morn; do if [ -f /pipeline/final/$b.meta.json ]; then echo HAVE $b; else echo MISSING $b; fi; done"
 ```
